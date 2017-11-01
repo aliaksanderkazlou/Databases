@@ -9,11 +9,11 @@ CREATE VIEW Production.vProductWorkOrder
 		workOrder.StartDate as startDate,
 		workOrder.EndDate as endDate,
 		workOrder.DueDate as dueDate,
-		workOrder.ScrapReasonID,
+		workOrder.ScrapReasonID as workOrderScrapReasonId,
 		workOrder.ModifiedDate as workOrderModifiedDate,
 		scrapReason.ModifiedDate as scrapReasonModifiedDate,
 		scrapReason.Name as scrapReasonName,
-		scrapReason.ScrapReasonID as scrapReasonId,
+		scrapReason.ScrapReasonID,
 		product.Name as productName
     FROM
         Production.WorkOrder AS workOrder 
@@ -65,7 +65,7 @@ BEGIN TRANSACTION
 			startDate,
 			endDate,
 			dueDate,
-			@ScrapReasonId
+			@ScrapReasonId,
 			workOrderModifiedDate
         FROM inserted
 		INNER JOIN Product as product
@@ -131,5 +131,43 @@ BEGIN TRANSACTION
 COMMIT;
 GO
 
-DROP VIEW Production.vProductWorkOrder;
-GO
+INSERT INTO Production.vProductWorkOrder 
+(
+		productId,
+		orderQty,
+		stokedQty,
+		screppedQty,
+		startDate,
+		endDate,
+		dueDate,
+		workOrderScrapReasonId,
+		workOrderModifiedDate,
+		scrapReasonModifiedDate,
+		scrapReasonName,
+		productName
+)
+VALUES
+(
+	1,
+	1,
+	1,
+	1,
+	GETDATE(),
+	GETDATE(),
+	GETDATE(),
+	1,
+	GETDATE(),
+	GETDATE(),
+	'name',
+	'Adjustable Race'
+);
+
+SELECT * FROM Production.WorkOrder
+SELECT * FROM Production.ScrapReason
+
+SELECT * FROM Production.vProductWorkOrder
+
+UPDATE Production.vProductWorkOrder
+	SET
+		scrapReasonName = 'another name'
+	WHERE WorkOrderID = 72599
