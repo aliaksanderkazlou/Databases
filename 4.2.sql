@@ -88,8 +88,6 @@ BEGIN TRANSACTION
 		DueDate = inserted.dueDate
     FROM
         inserted
-	INNER JOIN vProductWorkOrder as vWorkOrder
-		ON vWorkOrder.productName = inserted.productName
 	INNER JOIN Product as product
 		ON product.Name = inserted.productName
     WHERE
@@ -102,10 +100,12 @@ BEGIN TRANSACTION
         ModifiedDate = inserted.scrapReasonModifiedDate
     FROM
         inserted
-	INNER JOIN vProductWorkOrder as vWorkOrder
-		ON vWorkOrder.productName = inserted.productName
+	INNER JOIN Product as product
+		ON product.Name = inserted.productName
+	INNER JOIN WorkOrder as workOrder
+		ON workOrder.ProductID = product.ProductID
     WHERE
-        vWorkOrder.scrapReasonId = ScrapReason.ScrapReasonID
+        workOrder.scrapReasonId = ScrapReason.ScrapReasonID
 COMMIT;
 GO
 
@@ -116,21 +116,20 @@ BEGIN TRANSACTION
 	DECLARE @name INT
 
 	SELECT @name = productName FROM deleted
-	
-    DELETE Production.ScrapReason FROM Production.ScrapReason
-	INNER JOIN vProductWorkOrder as vWorkOrder
-		ON vWorkOrder.productName = @name
-	INNER JOIN Production.WorkOrder as workOrder
-		ON vWorkOrder.WorkOrderID = workOrder.WorkOrderID
-	WHERE Production.ScrapReason.ScrapReasonID = workOrder.ScrapReasonID
 
-	DELETE Production.WorkOrder FROM Production.WorkOrder
-	INNER JOIN 
+	DELETE ScrapReason FROM ScrapReason
+	INNER JOIN Product as product
+		ON product.Name = @name
+	INNER JOIN WorkOrder as workOrder
+		ON workOrder.ProductID = product.ProductID
+	WHERE workOrder.ScrapReasonID = ScrapReason.ScrapReasonID
+	
+	DELETE WorkOrder FROM WorkOrder
+	INNER JOIN Product as product
+		ON product.Name = @name
+	WHERE WorkOrder.ProductID = product.ProductID
 COMMIT;
 GO
-
-
-
 
 DROP VIEW Production.vProductWorkOrder;
 GO
