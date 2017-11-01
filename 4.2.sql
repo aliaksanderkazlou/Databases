@@ -33,10 +33,22 @@ CREATE TRIGGER Production.vProductWorkOrder_IOI on Production.vProductWorkOrder
 INSTEAD OF INSERT
 AS
 BEGIN TRANSACTION
-    SET IDENTITY_INSERT Production.WorkOrder ON;
+	DECLARE @ScrapReasonId INT
+
+	INSERT INTO Production.ScrapReason
+        (
+			Name,
+			ModifiedDate
+        )
+        SELECT
+			scrapReasonName,
+			scrapReasonModifiedDate
+        FROM inserted
+
+	SET @ScrapReasonId = SCOPE_IDENTITY()
+	
     INSERT INTO Production.WorkOrder
         (
-            WorkOrderID,
 			ProductID,
 			OrderQty,
 			ScrappedQty,
@@ -47,34 +59,76 @@ BEGIN TRANSACTION
 			ModifiedDate
         )
         SELECT
-			WorkOrderID,
-            productId,
+            product.ProductID,
             orderQty,
             screppedQty,
 			startDate,
 			endDate,
 			dueDate,
-			scrapReasonId,
+			@ScrapReasonId
 			workOrderModifiedDate
         FROM inserted
-    SET IDENTITY_INSERT Production.ProductCategory OFF;
-
-
-    SET IDENTITY_INSERT Production.ScrapReason ON;
-    INSERT INTO Production.ScrapReason
-        (
-            ScrapReasonID,
-			Name,
-			ModifiedDate
-        )
-        SELECT
-            scrapReasonId,
-			scrapReasonName,
-			scrapReasonModifiedDate
-        FROM inserted
-    SET IDENTITY_INSERT Production.ProductSubcategory OFF;
+		INNER JOIN Product as product
+			ON product.Name = inserted.productName
 COMMIT;
 GO
+
+CREATE TRIGGER Production.vProductWorkOrder_IOU on Production.vProductWorkOrder
+INSTEAD OF UPDATE
+AS
+BEGIN TRANSACTION
+    UPDATE
+        Production.WorkOrder
+    SET
+        ProductId = product.ProductID,
+        ModifiedDate = inserted.workOrderModifiedDate,
+		ScrappedQty = inserted.screppedQty,
+		StartDate = inserted.startDate,
+		EndDate = inserted.endDate,
+		DueDate = inserted.dueDate
+    FROM
+        inserted
+	INNER JOIN vProductWorkOrder as vWorkOrder
+		ON vWorkOrder.productName = inserted.productName
+	INNER JOIN Product as product
+		ON product.Name = inserted.productName
+    WHERE
+        product.ProductID = WorkOrder.ProductID
+
+    UPDATE
+        Production.ScrapReason
+    SET
+        Name = inserted.scrapReasonName,
+        ModifiedDate = inserted.scrapReasonModifiedDate
+    FROM
+        inserted
+	INNER JOIN vProductWorkOrder as vWorkOrder
+		ON vWorkOrder.productName = inserted.productName
+    WHERE
+        vWorkOrder.scrapReasonId = ScrapReason.ScrapReasonID
+COMMIT;
+GO
+
+CREATE TRIGGER Production.vProductWorkOrder_IOD on Production.vProductWorkOrder
+INSTEAD OF DELETE
+AS
+BEGIN TRANSACTION	
+	DECLARE @name INT
+
+	SELECT @name = productName FROM deleted
+	
+    DELETE Production.ScrapReason FROM Production.ScrapReason
+	INNER JOIN vProductWorkOrder as vWorkOrder
+		ON vWorkOrder.productName = @name
+	INNER JOIN Production.WorkOrder as workOrder
+		ON vWorkOrder.WorkOrderID = workOrder.WorkOrderID
+	WHERE Production.ScrapReason.ScrapReasonID = workOrder.ScrapReasonID
+
+	DELETE Production.WorkOrder FROM Production.WorkOrder
+	INNER JOIN 
+COMMIT;
+GO
+
 
 
 
